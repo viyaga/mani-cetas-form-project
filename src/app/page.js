@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -39,7 +39,6 @@ const schema = z.object({
 const FORM_STORAGE_KEY = 'multiStepFormData';
 
 export default function MultiStepRegister() {
-  const formRef = useRef(null);
   const [step, setStep] = useState(1);
   const [resumePreview, setResumePreview] = useState(null);
 
@@ -71,7 +70,17 @@ export default function MultiStepRegister() {
     });
 
   const onSubmit = async (data) => {
+    if (step !== steps.length) return;
     const file = data.resume?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (file && file.type !== 'application/pdf') {
+      showAlert('Please upload a PDF file', 'error');
+      return;
+    }
+
     const resume = file ? await toBase64(file) : null;
     await fetch('/api/submit', {
       method: 'POST',
@@ -79,10 +88,10 @@ export default function MultiStepRegister() {
       body: JSON.stringify({ ...data, resume }),
     });
     showAlert('Form submitted!', 'success');
-    reset();
-    setResumePreview(null);
-    setStep(1);
-    localStorage.removeItem(FORM_STORAGE_KEY);
+    // reset();
+    // setResumePreview(null);
+    // setStep(1);
+    // localStorage.removeItem(FORM_STORAGE_KEY);
   };
 
   const steps = [
@@ -103,9 +112,12 @@ export default function MultiStepRegister() {
   };
 
   const handleNext = async () => {
+    // if (step >= steps.length) return; // Prevent going out of bounds
     const currentFields = steps[step - 1].fields.map(([name]) => name);
     const valid = await trigger(currentFields);
-    if (valid) setStep((s) => s + 1);
+
+    if (valid) setStep((s) => Math.min(s + 1, steps.length));
+
   };
 
   // 💾 Load from localStorage on mount
@@ -145,19 +157,18 @@ export default function MultiStepRegister() {
               {steps.map((_, index) => (
                 <div
                   key={index}
-                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                    index + 1 < step
-                      ? 'bg-green-400'
-                      : index + 1 === step
+                  className={`w-3 h-3 rounded-full transition-all duration-300 ${index + 1 < step
+                    ? 'bg-green-400'
+                    : index + 1 === step
                       ? 'bg-white'
                       : 'bg-gray-600'
-                  }`}
+                    }`}
                 />
               ))}
             </div>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} ref={formRef} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <AnimatePresence mode="wait">
               <motion.div
                 key={step}
@@ -186,10 +197,10 @@ export default function MultiStepRegister() {
                     <Label htmlFor="resume" className="text-white">Resume (PDF, Max 2MB)</Label>
                     <Input id="resume" type="file" className="mt-2" accept=".pdf" {...register('resume')} onChange={handleFileChange} />
                     {resumePreview ? (
-                      <iframe
+                      <embed
                         src={resumePreview}
-                        title="Resume Preview"
-                        className="w-full h-64 mt-3 border border-white/20 rounded-lg"
+                        type="application/pdf"
+                        className="w-full h-64 mt-3 border border-white/20 rounded-lg hidden sm:block"
                       />
                     ) : (
                       <p className="text-gray-400 text-sm mt-2">No preview available</p>
@@ -204,7 +215,7 @@ export default function MultiStepRegister() {
               {step > 1 ? (
                 <Button type="button" className="btn-outline" onClick={() => setStep((s) => s - 1)}>Back</Button>
               ) : <div />}
-              {step < steps.length + 1 ? (
+              {step < steps.length ? (
                 <Button type="button" onClick={handleNext} className="ml-auto btn-primary">Next</Button>
               ) : (
                 <Button type="submit" className="btn-primary">Submit</Button>
