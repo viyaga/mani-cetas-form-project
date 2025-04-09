@@ -127,7 +127,7 @@ export default function MultiStepRegister() {
   }, [watchedFields]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1e1e2f] via-[#111113] to-[#0c0c0d] sm:px-4 sm:py-10">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1e1e2f] via-[#111113] to-[#0c0c0d] px-4 py-10">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -175,7 +175,7 @@ export default function MultiStepRegister() {
                       type={type}
                       placeholder={label}
                       {...register(name)}
-                      className="mt-1"
+                      className="mt-2"
                     />
                     {errors[name] && <p className="text-red-400 text-sm mt-1">{errors[name]?.message?.toString()}</p>}
                   </div>
@@ -184,7 +184,7 @@ export default function MultiStepRegister() {
                 {step === 5 && (
                   <div>
                     <Label htmlFor="resume" className="text-white">Resume (PDF, Max 2MB)</Label>
-                    <Input id="resume" type="file" accept=".pdf" {...register('resume')} onChange={handleFileChange} />
+                    <Input id="resume" type="file" className="mt-2" accept=".pdf" {...register('resume')} onChange={handleFileChange} />
                     {resumePreview ? (
                       <iframe
                         src={resumePreview}
@@ -204,10 +204,10 @@ export default function MultiStepRegister() {
               {step > 1 ? (
                 <Button type="button" className="btn-outline" onClick={() => setStep((s) => s - 1)}>Back</Button>
               ) : <div />}
-              {step < steps.length ? (
+              {step < steps.length + 1 ? (
                 <Button type="button" onClick={handleNext} className="ml-auto btn-primary">Next</Button>
               ) : (
-                <Button type="submit" className="w-full btn-primary">Submit</Button>
+                <Button type="submit" className="btn-primary">Submit</Button>
               )}
             </div>
           </form>
