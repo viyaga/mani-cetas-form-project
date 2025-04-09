@@ -88,10 +88,10 @@ export default function MultiStepRegister() {
       body: JSON.stringify({ ...data, resume }),
     });
     showAlert('Form submitted!', 'success');
-    // reset();
-    // setResumePreview(null);
-    // setStep(1);
-    // localStorage.removeItem(FORM_STORAGE_KEY);
+    reset();
+    setResumePreview(null);
+    setStep(1);
+    localStorage.removeItem(FORM_STORAGE_KEY);
   };
 
   const steps = [
