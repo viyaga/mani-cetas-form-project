@@ -1,103 +1,135 @@
-import Image from "next/image";
+// Updated form with all 18 fields and Framer Motion animation (replacing GSAP)
 
-export default function Home() {
+'use client';
+
+import { useRef } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { toast } from "sonner";
+import { motion } from "framer-motion";
+
+const schema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email"),
+  phone: z.string().regex(/^\d{10}$/, "Phone must be 10 digits"),
+  gender: z.string().min(1, "Gender is required"),
+  dob: z.string(),
+  certificateNo: z.string().min(1, "Certificate No is required"),
+  degree: z.string(),
+  yop: z.string(),
+  fresher: z.string(),
+  relevantExp: z.string(),
+  otherExp: z.string(),
+  expertise: z.string(),
+  currentCTC: z.string(),
+  expectedCTC: z.string(),
+  notice: z.string(),
+  noticeDays: z.string(),
+  noticeServingTill: z.string(),
+  knownThrough: z.string(),
+  resume: z
+    .any()
+    .optional()
+    .refine((file) => !file?.[0] || file[0].size <= 2 * 1024 * 1024, "Resume must be under 2MB"),
+});
+
+export default function RegisterPage() {
+  const formRef = useRef(null);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    watch,
+  } = useForm({
+    resolver: zodResolver(schema),
+  });
+
+  const showAlert = (message, variant) => {
+    if (variant === "success") toast.success(message);
+    else if (variant === "danger") toast.error(message);
+    else toast(message);
+  };
+
+  const toBase64 = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+    });
+
+  const onSubmit = async (data) => {
+    const file = data.resume?.[0];
+    const resume = file ? await toBase64(file) : null;
+    await fetch("/api/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...data, resume }),
+    });
+    showAlert("Form submitted!", "success");
+    reset();
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.js
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-tr from-black via-gray-900 to-gray-800 p-4 overflow-hidden">
+      <motion.div
+        id="form-container"
+        initial={{ opacity: 0, y: -50 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 1, ease: "easeOut" }}
+        className="w-full max-w-md z-10 shadow-xl border border-white/10 bg-white/5 backdrop-blur p-6 rounded-xl"
+      >
+        <CardContent className="space-y-6">
+          <div className="text-center text-white space-y-1">
+            <img src="https://i.ibb.co/CpZ0F5dk/Cetas-Logo-White.png" alt="Cetas Logo" className="mx-auto w-32 mb-2" />
+            <h2 className="text-xl font-bold">Cetas Walk-in Interview Registration</h2>
+          </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <form onSubmit={handleSubmit(onSubmit)} ref={formRef} className="space-y-4">
+            {[
+              ["name", "Name"],
+              ["email", "Email"],
+              ["phone", "Phone"],
+              ["gender", "Gender"],
+              ["dob", "Date of Birth", "date"],
+              ["certificateNo", "10th Certificate No"],
+              ["degree", "Education Qualification"],
+              ["yop", "Year Of Passing"],
+              ["fresher", "Fresher/Experienced"],
+              ["relevantExp", "Relevant Experience (Same Domain)"],
+              ["otherExp", "Other Domain Experience"],
+              ["expertise", "Expertise - Functional/Technical"],
+              ["currentCTC", "Current CTC (in Lakhs)"],
+              ["expectedCTC", "Expected CTC (in Lakhs)"],
+              ["notice", "Immediate Joiner / Notice Period"],
+              ["noticeDays", "Notice Period - No. of days / months"],
+              ["noticeServingTill", "Notice Period - Serving - Last Date"],
+              ["knownThrough", "Known of Cetas through LinkedIn or friends"],
+            ].map(([name, label, type = "text"]) => (
+              <div key={name}>
+                <Label htmlFor={name} className="text-white">{label}</Label>
+                <Input id={name} type={type} {...register(name)} />
+                {errors[name] && <p className="text-red-500 text-sm mt-1">{errors[name].message?.toString()}</p>}
+              </div>
+            ))}
+
+            <div>
+              <Label htmlFor="resume" className="text-white">Resume (PDF, Max 2MB)</Label>
+              <Input id="resume" type="file" accept=".pdf" {...register("resume")} />
+              {errors.resume && <p className="text-red-500 text-sm mt-1">{errors.resume.message?.toString()}</p>}
+            </div>
+
+            <Button type="submit" className="w-full mt-4">Submit</Button>
+          </form>
+        </CardContent>
+      </motion.div>
     </div>
   );
 }
