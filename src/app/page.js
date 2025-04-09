@@ -1,25 +1,23 @@
-// Updated form with all 18 fields and Framer Motion animation (replacing GSAP)
-
 'use client';
 
-import { useRef } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
-import { toast } from "sonner";
-import { motion } from "framer-motion";
+import { useRef, useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { CardContent } from '@/components/ui/card';
+import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const schema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email"),
-  phone: z.string().regex(/^\d{10}$/, "Phone must be 10 digits"),
-  gender: z.string().min(1, "Gender is required"),
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().email('Invalid email'),
+  phone: z.string().regex(/^\d{10}$/, 'Phone must be 10 digits'),
+  gender: z.string().min(1, 'Gender is required'),
   dob: z.string(),
-  certificateNo: z.string().min(1, "Certificate No is required"),
+  certificateNo: z.string().min(1, 'Certificate No is required'),
   degree: z.string(),
   yop: z.string(),
   fresher: z.string(),
@@ -35,11 +33,15 @@ const schema = z.object({
   resume: z
     .any()
     .optional()
-    .refine((file) => !file?.[0] || file[0].size <= 2 * 1024 * 1024, "Resume must be under 2MB"),
+    .refine((file) => !file?.[0] || file[0].size <= 2 * 1024 * 1024, 'Resume must be under 2MB'),
 });
 
-export default function RegisterPage() {
+const FORM_STORAGE_KEY = 'multiStepFormData';
+
+export default function MultiStepRegister() {
   const formRef = useRef(null);
+  const [step, setStep] = useState(1);
+  const [resumePreview, setResumePreview] = useState(null);
 
   const {
     register,
@@ -47,14 +49,17 @@ export default function RegisterPage() {
     formState: { errors },
     reset,
     watch,
+    trigger,
+    setValue,
   } = useForm({
     resolver: zodResolver(schema),
+    mode: 'onChange',
   });
 
+  const watchedFields = watch();
+
   const showAlert = (message, variant) => {
-    if (variant === "success") toast.success(message);
-    else if (variant === "danger") toast.error(message);
-    else toast(message);
+    variant === 'success' ? toast.success(message) : toast.error(message);
   };
 
   const toBase64 = (file) =>
@@ -68,65 +73,143 @@ export default function RegisterPage() {
   const onSubmit = async (data) => {
     const file = data.resume?.[0];
     const resume = file ? await toBase64(file) : null;
-    await fetch("/api/submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    await fetch('/api/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...data, resume }),
     });
-    showAlert("Form submitted!", "success");
+    showAlert('Form submitted!', 'success');
     reset();
+    setResumePreview(null);
+    setStep(1);
+    localStorage.removeItem(FORM_STORAGE_KEY);
   };
 
+  const steps = [
+    { title: 'Personal Info', fields: [['name', 'Name'], ['email', 'Email'], ['phone', 'Phone'], ['gender', 'Gender'], ['dob', 'Date of Birth', 'date']] },
+    { title: 'Education & Experience', fields: [['certificateNo', '10th Certificate No'], ['degree', 'Education Qualification'], ['yop', 'Year Of Passing'], ['fresher', 'Fresher/Experienced'], ['relevantExp', 'Relevant Experience'], ['otherExp', 'Other Domain Experience']] },
+    { title: 'Expertise & CTC', fields: [['expertise', 'Expertise'], ['currentCTC', 'Current CTC'], ['expectedCTC', 'Expected CTC']] },
+    { title: 'Notice & Reference', fields: [['notice', 'Immediate Joiner / Notice Period'], ['noticeDays', 'Notice Period - Days'], ['noticeServingTill', 'Notice Period - Last Date'], ['knownThrough', 'Known of Cetas through']] },
+    { title: 'Resume Upload', fields: [] },
+  ];
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file && file.type === 'application/pdf') {
+      setResumePreview(URL.createObjectURL(file));
+    } else {
+      setResumePreview(null);
+    }
+  };
+
+  const handleNext = async () => {
+    const currentFields = steps[step - 1].fields.map(([name]) => name);
+    const valid = await trigger(currentFields);
+    if (valid) setStep((s) => s + 1);
+  };
+
+  // 💾 Load from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(FORM_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      Object.entries(parsed).forEach(([key, value]) => {
+        if (key !== 'resume') setValue(key, value);
+      });
+    }
+  }, [setValue]);
+
+  // 💾 Save to localStorage on change
+  useEffect(() => {
+    const formData = { ...watchedFields };
+    delete formData.resume; // Don't persist files
+    localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(formData));
+  }, [watchedFields]);
+
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-tr from-black via-gray-900 to-gray-800 p-4 overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1e1e2f] via-[#111113] to-[#0c0c0d] px-4 py-10">
       <motion.div
-        id="form-container"
-        initial={{ opacity: 0, y: -50 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1, ease: "easeOut" }}
-        className="w-full max-w-md z-10 shadow-xl border border-white/10 bg-white/5 backdrop-blur p-6 rounded-xl"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4 }}
+        className="w-full max-w-xl border border-white/10 rounded-2xl p-6 backdrop-blur bg-white/5 shadow-2xl"
       >
         <CardContent className="space-y-6">
-          <div className="text-center text-white space-y-1">
-            <img src="https://i.ibb.co/CpZ0F5dk/Cetas-Logo-White.png" alt="Cetas Logo" className="mx-auto w-32 mb-2" />
-            <h2 className="text-xl font-bold">Cetas Walk-in Interview Registration</h2>
+          <div className="text-center text-white">
+            <img src="https://i.ibb.co/CpZ0F5dk/Cetas-Logo-White.png" alt="Cetas Logo" className="mx-auto w-28 mb-3" />
+            <h2 className="text-xl font-bold tracking-wide">{steps[step - 1].title}</h2>
+            <p className="text-sm text-gray-300">Step {step} of {steps.length}</p>
+
+            {/* 🔘 Progress Bullets */}
+            <div className="flex justify-center gap-2 mt-4">
+              {steps.map((_, index) => (
+                <div
+                  key={index}
+                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                    index + 1 < step
+                      ? 'bg-green-400'
+                      : index + 1 === step
+                      ? 'bg-white'
+                      : 'bg-gray-600'
+                  }`}
+                />
+              ))}
+            </div>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} ref={formRef} className="space-y-4">
-            {[
-              ["name", "Name"],
-              ["email", "Email"],
-              ["phone", "Phone"],
-              ["gender", "Gender"],
-              ["dob", "Date of Birth", "date"],
-              ["certificateNo", "10th Certificate No"],
-              ["degree", "Education Qualification"],
-              ["yop", "Year Of Passing"],
-              ["fresher", "Fresher/Experienced"],
-              ["relevantExp", "Relevant Experience (Same Domain)"],
-              ["otherExp", "Other Domain Experience"],
-              ["expertise", "Expertise - Functional/Technical"],
-              ["currentCTC", "Current CTC (in Lakhs)"],
-              ["expectedCTC", "Expected CTC (in Lakhs)"],
-              ["notice", "Immediate Joiner / Notice Period"],
-              ["noticeDays", "Notice Period - No. of days / months"],
-              ["noticeServingTill", "Notice Period - Serving - Last Date"],
-              ["knownThrough", "Known of Cetas through LinkedIn or friends"],
-            ].map(([name, label, type = "text"]) => (
-              <div key={name}>
-                <Label htmlFor={name} className="text-white">{label}</Label>
-                <Input id={name} type={type} {...register(name)} />
-                {errors[name] && <p className="text-red-500 text-sm mt-1">{errors[name].message?.toString()}</p>}
-              </div>
-            ))}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={step}
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -50 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-4"
+              >
+                {steps[step - 1].fields.map(([name, label, type = 'text']) => (
+                  <div key={name}>
+                    <Label htmlFor={name} className="text-white">{label}</Label>
+                    <Input
+                      id={name}
+                      type={type}
+                      placeholder={label}
+                      {...register(name)}
+                      className="mt-1"
+                    />
+                    {errors[name] && <p className="text-red-400 text-sm mt-1">{errors[name]?.message?.toString()}</p>}
+                  </div>
+                ))}
 
-            <div>
-              <Label htmlFor="resume" className="text-white">Resume (PDF, Max 2MB)</Label>
-              <Input id="resume" type="file" accept=".pdf" {...register("resume")} />
-              {errors.resume && <p className="text-red-500 text-sm mt-1">{errors.resume.message?.toString()}</p>}
+                {step === 5 && (
+                  <div>
+                    <Label htmlFor="resume" className="text-white">Resume (PDF, Max 2MB)</Label>
+                    <Input id="resume" type="file" accept=".pdf" {...register('resume')} onChange={handleFileChange} />
+                    {resumePreview ? (
+                      <iframe
+                        src={resumePreview}
+                        title="Resume Preview"
+                        className="w-full h-64 mt-3 border border-white/20 rounded-lg"
+                      />
+                    ) : (
+                      <p className="text-gray-400 text-sm mt-2">No preview available</p>
+                    )}
+                    {errors.resume && <p className="text-red-400 text-sm mt-1">{errors.resume.message?.toString()}</p>}
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+
+            <div className="flex justify-between gap-4 pt-4">
+              {step > 1 ? (
+                <Button type="button" className="btn-outline" onClick={() => setStep((s) => s - 1)}>Back</Button>
+              ) : <div />}
+              {step < steps.length ? (
+                <Button type="button" onClick={handleNext} className="ml-auto btn-primary">Next</Button>
+              ) : (
+                <Button type="submit" className="w-full btn-primary">Submit</Button>
+              )}
             </div>
-
-            <Button type="submit" className="w-full mt-4">Submit</Button>
           </form>
         </CardContent>
       </motion.div>
