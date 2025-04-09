@@ -127,12 +127,12 @@ export default function MultiStepRegister() {
   }, [watchedFields]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1e1e2f] via-[#111113] to-[#0c0c0d] px-4 py-10">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1e1e2f] via-[#111113] to-[#0c0c0d] sm:px-4 sm:py-10">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-xl border border-white/10 rounded-2xl p-6 backdrop-blur bg-white/5 shadow-2xl"
+        className="w-full max-w-xl border border-white/10 rounded-2xl p-4 sm:p-6 backdrop-blur bg-white/5 shadow-2xl"
       >
         <CardContent className="space-y-6">
           <div className="text-center text-white">
