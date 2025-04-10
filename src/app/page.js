@@ -8,8 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { CardContent } from '@/components/ui/card';
-import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { checkEmailExists, sendFormData, sendQrCodeEmail, showAlert, toBase64 } from '@/lib/utils';
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -57,41 +57,38 @@ export default function MultiStepRegister() {
 
   const watchedFields = watch();
 
-  const showAlert = (message, variant) => {
-    variant === 'success' ? toast.success(message) : toast.error(message);
-  };
-
-  const toBase64 = (file) =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-    });
-
   const onSubmit = async (data) => {
-    if (step !== steps.length) return;
-    const file = data.resume?.[0];
-    if (!file) {
-      return;
-    }
+    try {
 
-    if (file && file.type !== 'application/pdf') {
-      showAlert('Please upload a PDF file', 'error');
-      return;
-    }
+      if (step !== steps.length) return;
+      const file = data.resume?.[0];
+      if (!file) {
+        return;
+      }
 
-    const resume = file ? await toBase64(file) : null;
-    await fetch('/api/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, resume }),
-    });
-    showAlert('Form submitted!', 'success');
-    reset();
-    setResumePreview(null);
-    setStep(1);
-    localStorage.removeItem(FORM_STORAGE_KEY);
+      if (file && file.type !== 'application/pdf') {
+        showAlert('Please upload a PDF file', 'error');
+        return;
+      }
+
+      const emailExists = await checkEmailExists(data.email);
+      if (emailExists) {
+        showAlert('Email already exists', 'error');
+        return;
+      }
+
+      const resume = file ? await toBase64(file) : null;
+      await sendFormData({ ...data, resume });
+      await sendQrCodeEmail(data.email);
+
+      showAlert('Form submitted!', 'success');
+      reset();
+      setResumePreview(null);
+      setStep(1);
+      localStorage.removeItem(FORM_STORAGE_KEY);
+    } catch (error) {
+      showAlert('Failed to submit the form', 'error');
+    }
   };
 
   const steps = [
